@@ -7,10 +7,10 @@ const JWT_SECRET = '2cf8abb9231cd14fe3bd9cd3fd304c715c334a51aa682a1b720d395cd063
 
 // Signup handler
 exports.signup = async (req, res) => {
-  const { username, email, password, role, birthdate, profile_picture, first_name, last_name } = req.body;
+  const { username, email, password, role, birthdate, profile_picture, first_name, last_name, mobile_number } = req.body;
 
   // Check if all required fields are provided
-  if (!username || !email || !password || !role || !birthdate || !first_name || !last_name) {
+  if ( !mobile_number || !email || !password || !role || !birthdate || !first_name || !last_name) {
     return res.status(400).json({ message: 'All required fields must be provided' });
   }
 
@@ -29,21 +29,22 @@ exports.signup = async (req, res) => {
 
       // Insert the new user into the database
       const insertUserQuery = `
-        INSERT INTO users (username, email, password, role, birthdate, profile_picture, first_name, last_name)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (username, email, password, role, birthdate, profile_picture, first_name, last_name, mobile_number)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       db.query(
         insertUserQuery,
         [
-          username,
+          username || '',
           email,
           hashedPassword,
           role,
           birthdate,
-          profile_picture || null, // Handle optional profile_picture
+          profile_picture || '', // Handle optional profile_picture
           first_name,
-          last_name
+          last_name,
+          mobile_number
         ],
         (err) => {
           if (err) throw err;
@@ -81,7 +82,7 @@ exports.login = (req, res) => {
         return res.status(400).json({ message: 'Invalid email or password' });
       }
 
-      const access_token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+      const access_token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '5h' });
       res.status(200).json({ message: 'Login Successful', access_token, user_id: user.id, first_name: user.first_name, last_name: user.last_name, email: user.email, profile_picture: user.profile_picture});
     });
   } catch (error) {

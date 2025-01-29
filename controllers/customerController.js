@@ -88,14 +88,20 @@ exports.getCustomerById = (req, res) => {
   const { user_id } = req.body; // Extract user_id from the POST request body
 
   if (!user_id) {
-    return res.status(400).json({ message: 'user_id is required' });
+      return res.status(400).json({ message: 'user_id is required' });
   }
 
   getCustomerById(user_id, (err, customer) => {
-    if (err) {
-      return res.status(500).json({ message: 'Error fetching customer data', error: err.message });
-    }
-    res.status(200).json({ message: 'Customer data fetched successfully', data: customer });
+      if (err) {
+          console.error('Database error:', err); // Log the actual error
+          return res.status(500).json({ message: 'Error fetching customer data', error: err.message });
+      }
+
+      if (!customer) { // Handle case where no customer is found
+          return res.status(404).json({ message: 'No customer found, please add new customer.' });
+      }
+
+      res.status(200).json({ message: 'Customer data fetched successfully', data: customer });
   });
 };
 

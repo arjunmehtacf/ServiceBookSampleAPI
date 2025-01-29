@@ -14,16 +14,23 @@ const getAllCustomers = (callback) => {
 
 // Function to get all customers of specific user.
 const getCustomerById = (user_id, callback) => {
-    const query = 'SELECT user_id, customer_id, name, address, mobile_number, res_mobile_number, c_mobile_number, unit_no, fitting_date, contract_date, con_payment, cash_cheque, payment_date, model, water_time, morning, noon, evening, instruction FROM customers WHERE user_id = ?';
+    const query = `
+        SELECT user_id, customer_id, name, address, mobile_number, res_mobile_number, c_mobile_number, 
+               unit_no, fitting_date, contract_date, con_payment, cash_cheque, payment_date, 
+               model, water_time, morning, noon, evening, instruction 
+        FROM customers 
+        WHERE user_id = ?`;
 
     db.query(query, [user_id], (err, results) => {
         if (err) {
+            // Return actual database errors
             return callback(err, null);
         }
-        // If no customer found
+        // Return `null` if no customer is found
         if (results.length === 0) {
-            return callback(new Error('Customer or User not found'), null);
+            return callback(null, null); // No error, but no data either
         }
+        // Return the results
         callback(null, results);
     });
 };
