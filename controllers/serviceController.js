@@ -1,4 +1,4 @@
-const { validateCustomer, addService, getServicesByCustomerId, deleteServiceById, updateServiceById } = require('../model/serviceModel');
+const { validateCustomer, addService, getServicesByCustomerId, deleteServiceById, updateServiceById, getAllService, getServicesByUserId } = require('../model/serviceModel');
 
 // Add Service
 exports.addService = (req, res) => {
@@ -84,6 +84,33 @@ exports.getServicesByCustomerId = (req, res) => {
   });
 };
 
+
+// Get a list of services for the given user
+exports.getAllService = (req, res) => {
+  const { user_id } = req.body;
+
+  // Validate required fields
+  if (!user_id) {
+    return res.status(400).json({ message: 'user_id is required' });
+  }
+
+  // Optional: Check if user_id matches the id from JWT
+  if (user_id !== req.user.id) {
+    return res.status(403).json({ message: 'User ID does not match the token' });
+  }
+
+  getServicesByUserId(user_id, (err, services) => {
+    if (err) {
+      return res.status(500).json({ message: 'Error fetching services', error: err.message });
+    }
+
+    if (services.length === 0) {
+      return res.status(404).json({ message: 'No services found for the given user', data: services });
+    }
+
+    res.status(200).json({ message: 'Services fetched successfully', data: services });
+  });
+};
 
 
 // Delete a service by service_detail_id

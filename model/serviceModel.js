@@ -63,6 +63,23 @@ const getServicesByCustomerId = (customer_id, user_id, callback) => {
   });
 };
 
+
+// Function to fetch all services for a specific user_id
+const getServicesByUserId = (user_id, callback) => {
+  const query = `
+      SELECT service_detail_id, customer_id, user_id, visit_date, visit_time, purpose, particulars, tech_sign, cust_sign 
+      FROM service_detail 
+      WHERE user_id = ?
+    `;
+
+  db.query(query, [user_id], (err, results) => {
+    if (err) {
+      return callback(err, null);
+    }
+    callback(null, results);
+  });
+};
+
 // Function to delete a service based on service_detail_id and user_id
 const deleteServiceById = (service_detail_id, user_id, callback) => {
   const query = `
@@ -120,4 +137,4 @@ const updateServiceById = (service_detail_id, user_id, updatedData, callback) =>
   );
 };
 
-module.exports = { validateCustomer, addService, getServicesByCustomerId, deleteServiceById, updateServiceById };
+module.exports = { validateCustomer, addService, getServicesByCustomerId, deleteServiceById, updateServiceById, getServicesByUserId };
