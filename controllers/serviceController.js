@@ -77,7 +77,7 @@ exports.getServicesByCustomerId = (req, res) => {
     }
 
     if (services.length === 0) {
-      return res.status(404).json({ message: 'No services found for the given customer and user', data: services });
+      return res.status(404).json({ message: 'No services found for the given customer', data: services });
     }
 
     res.status(200).json({ message: 'Services fetched successfully', data: services });

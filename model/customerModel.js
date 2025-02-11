@@ -13,27 +13,44 @@ const getAllCustomers = (callback) => {
 };
 
 // Function to get all customers of specific user.
-const getCustomerById = (user_id, callback) => {
-    const query = `
-        SELECT user_id, customer_id, name, address, mobile_number, res_mobile_number, c_mobile_number, 
-               unit_no, fitting_date, contract_date, con_payment, cash_cheque, payment_date, 
-               model, water_time, morning, noon, evening, instruction 
-        FROM customers 
-        WHERE user_id = ?`;
-
-    db.query(query, [user_id], (err, results) => {
+const getCustomerById = (user_id, limit, offset, search, callback) => {
+    let query = `
+      SELECT SQL_CALC_FOUND_ROWS user_id, customer_id, name, address, mobile_number, 
+             res_mobile_number, c_mobile_number, unit_no, fitting_date, contract_date, 
+             con_payment, cash_cheque, payment_date, model, water_time, morning, 
+             noon, evening, instruction 
+      FROM customers 
+      WHERE user_id = ?`;
+  
+    // Add the search condition if the search term is provided
+    const queryParams = [user_id];
+    
+    if (search) {
+      query += ` AND (name LIKE ? OR address LIKE ? OR mobile_number LIKE ?)`;
+      const searchTerm = `%${search}%`;  // Adding '%' for partial matching
+      queryParams.push(searchTerm, searchTerm, searchTerm);
+    }
+  
+    query += ` LIMIT ? OFFSET ?`;
+  
+    queryParams.push(limit, offset);
+  
+    db.query(query, queryParams, (err, results) => {
+      if (err) {
+        return callback(err, null, 0);
+      }
+  
+      // Get total count of records
+      db.query("SELECT FOUND_ROWS() AS totalCount", (err, countResults) => {
         if (err) {
-            // Return actual database errors
-            return callback(err, null);
+          return callback(err, null, 0);
         }
-        // Return `null` if no customer is found
-        if (results.length === 0) {
-            return callback(null, null); // No error, but no data either
-        }
-        // Return the results
-        callback(null, results);
+  
+        const totalCount = countResults[0].totalCount;
+        callback(null, results, totalCount);
+      });
     });
-};
+  };
 
 
 //Function to delete a customer using their customer id
