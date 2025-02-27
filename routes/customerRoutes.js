@@ -5,7 +5,7 @@ const { getAllCustomers } = require('../controllers/customerController');
 const { getCustomerById } = require('../controllers/customerController');
 const { deleteCustomerById } = require('../controllers/customerController');
 const { updateCustomer } = require('../controllers/customerController');
-
+const { addProfilePicture } = require('../controllers/customerController');
 
 const router = express.Router();
 
@@ -15,6 +15,7 @@ router.get('/getAllCustomers', authenticateToken, getAllCustomers);
 router.post('/getCustomerById', authenticateToken, getCustomerById);
 router.post('/deleteCustomerById', authenticateToken, deleteCustomerById);
 router.post('/updateCustomerById', authenticateToken, updateCustomer);
+router.post('/updateProfilePicture', authenticateToken, addProfilePicture);
 
 module.exports = router;
 

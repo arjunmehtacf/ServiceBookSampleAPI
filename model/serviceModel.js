@@ -48,18 +48,36 @@ const addService = (serviceData, callback) => {
 
 
 // Function to fetch all services for a specific customer_id and user_id
-const getServicesByCustomerId = (customer_id, user_id, callback) => {
-  const query = `
-      SELECT service_detail_id, customer_id, user_id, visit_date, visit_time, purpose, particulars, tech_sign, cust_sign 
-      FROM service_detail 
-      WHERE customer_id = ? AND user_id = ?
-    `;
+const getServicesByCustomerId = (customer_id, user_id, search, page, limit, callback) => {
+  const offset = (page - 1) * limit;
+  const searchQuery = search ? `AND (purpose LIKE ? OR particulars LIKE ?)` : '';
 
-  db.query(query, [customer_id, user_id], (err, results) => {
+  const query = `
+    SELECT service_detail_id, customer_id, user_id, visit_date, visit_time, purpose, particulars, tech_sign, cust_sign
+    FROM service_detail
+    WHERE customer_id = ? AND user_id = ? ${searchQuery}
+    LIMIT ? OFFSET ?`;
+
+  const countQuery = `
+    SELECT COUNT(*) AS total FROM service_detail
+    WHERE customer_id = ? AND user_id = ? ${searchQuery}`;
+
+  const queryParams = search ? [customer_id, user_id, `%${search}%`, `%${search}%`, limit, offset] : [customer_id, user_id, limit, offset];
+  const countParams = search ? [customer_id, user_id, `%${search}%`, `%${search}%`] : [customer_id, user_id];
+
+  db.query(countQuery, countParams, (err, countResult) => {
     if (err) {
-      return callback(err, null);
+      return callback(err, null, null);
     }
-    callback(null, results);
+
+    const total = countResult[0].total;
+
+    db.query(query, queryParams, (err, results) => {
+      if (err) {
+        return callback(err, null, null);
+      }
+      callback(null, results, total);
+    });
   });
 };
 

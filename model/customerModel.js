@@ -188,5 +188,21 @@ const updateCustomerById = (customerData, callback) => {
   };
   
 
+  // function to update customer profile picture
 
-module.exports = { getAllCustomers, getCustomerById, deleteCustomerById, addCustomer, updateCustomerById };
+  const updateProfilePicture = (user_id, profile_picture) => {
+        return new Promise((resolve, reject) => {
+            const query = "UPDATE users SET profile_picture = ? WHERE id = ?";
+            db.query(query, [profile_picture, user_id], (err, result) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(result);
+                }
+            });
+        });
+    
+};
+
+
+module.exports = { getAllCustomers, getCustomerById, deleteCustomerById, addCustomer, updateCustomerById, updateProfilePicture };

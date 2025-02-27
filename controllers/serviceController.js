@@ -59,7 +59,7 @@ exports.addService = (req, res) => {
 
 // Get all services for a specific customer and user
 exports.getServicesByCustomerId = (req, res) => {
-  const { customer_id, user_id } = req.body;
+  const { customer_id, user_id, page = 1, limit = 10, search = '' } = req.body; // Added search
 
   // Validate required fields
   if (!customer_id || !user_id) {
@@ -71,7 +71,7 @@ exports.getServicesByCustomerId = (req, res) => {
     return res.status(403).json({ message: 'User ID does not match the token' });
   }
 
-  getServicesByCustomerId(customer_id, user_id, (err, services) => {
+  getServicesByCustomerId(customer_id, user_id, search, parseInt(page), parseInt(limit), (err, services, total) => {
     if (err) {
       return res.status(500).json({ message: 'Error fetching services', error: err.message });
     }
@@ -80,7 +80,16 @@ exports.getServicesByCustomerId = (req, res) => {
       return res.status(404).json({ message: 'No services found for the given customer', data: services });
     }
 
-    res.status(200).json({ message: 'Services fetched successfully', data: services });
+    res.status(200).json({
+      message: 'Services fetched successfully',
+      data: services,
+      pagination: {
+        totalRecords: total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        limit: limit
+      }
+    });
   });
 };
 

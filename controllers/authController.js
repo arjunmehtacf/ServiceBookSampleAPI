@@ -83,7 +83,7 @@ exports.login = (req, res) => {
       }
 
       const access_token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '5h' });
-      res.status(200).json({ message: 'Login Successful', access_token, user_id: user.id, first_name: user.first_name, last_name: user.last_name, email: user.email, profile_picture: user.profile_picture});
+      res.status(200).json({ message: 'Login Successful', access_token, user_id: user.id, first_name: user.first_name, last_name: user.last_name, email: user.email, mobile_number: user.mobile_number, birthdate: user.birthdate, profile_picture: user.profile_picture});
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });

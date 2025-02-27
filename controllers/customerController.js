@@ -4,7 +4,8 @@ const {
   getCustomerById,
   deleteCustomerById,
   addCustomer,
-  updateCustomerById
+  updateCustomerById,
+  updateProfilePicture
 } = require('../model/customerModel');
 
 
@@ -164,4 +165,29 @@ exports.updateCustomer = (req, res) => {
 
     res.status(200).json({ message: 'Customer updated successfully' });
   });
+};
+
+
+// Update customer profile picture
+exports.addProfilePicture = async (req, res) => {
+  try {
+      const { user_id, profile_picture } = req.body;
+
+      if (!user_id || !profile_picture) {
+          return res.status(400).json({ message: "User ID and Profile Picture are required" });
+      }
+
+      // Update user profile picture
+      const result = await updateProfilePicture(user_id, profile_picture);
+
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "User not found" });
+      }
+
+      res.status(200).json({ message: "Profile picture updated successfully" });
+
+  } catch (error) {
+      console.error("Error updating profile picture:", error);
+      res.status(500).json({ message: "Internal server error" });
+  }
 };
