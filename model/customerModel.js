@@ -205,4 +205,18 @@ const updateCustomerById = (customerData, callback) => {
 };
 
 
-module.exports = { getAllCustomers, getCustomerById, deleteCustomerById, addCustomer, updateCustomerById, updateProfilePicture };
+// get all susbcription plan
+
+const getAllSubscriptionPlans = (callback) => {
+  const query = 'SELECT plan_id, title, price, description, duration, amount FROM subscription_plan';
+
+  db.query(query, (err, results) => {
+    if (err) {
+      callback(err, null);
+    } else {
+      callback(null, results);
+    }
+  });
+};
+
+module.exports = { getAllCustomers, getCustomerById, deleteCustomerById, addCustomer, updateCustomerById, updateProfilePicture, getAllSubscriptionPlans };

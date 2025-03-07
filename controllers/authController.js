@@ -111,3 +111,106 @@ exports.logout = (req, res) => {
   // Respond with a success message
   res.status(200).json({ message: 'Logout successful, token invalidated' });
 };
+
+// Update user details
+
+exports.updateUser = (req, res) => {
+  const { user_id, first_name, last_name, email, mobile_number, birthdate } = req.body;
+
+  if (!user_id) {
+    return res.status(400).json({ message: 'User ID is required' });
+  }
+
+  const updateUserQuery = `
+    UPDATE users 
+    SET 
+      first_name = ?, 
+      last_name = ?, 
+      email = ?, 
+      mobile_number = ?, 
+      birthdate = ?
+    WHERE 
+      id = ?
+  `;
+
+  db.query(
+    updateUserQuery,
+    [first_name, last_name, email, mobile_number, birthdate, user_id],
+    (err, results) => {
+      if (err) {
+        console.error('Error updating user:', err);
+        return res.status(500).json({ message: 'Internal server error' });
+      }
+
+      if (results.affectedRows === 0) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.status(200).json({ message: 'Profile updated successfully' });
+    }
+  );
+}
+
+// Change password
+exports.changePassword = async (req, res) => {
+  const { user_id, old_password, new_password } = req.body;
+
+  if (!user_id || !old_password || !new_password) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  try {
+    const checkUserQuery = 'SELECT * FROM users WHERE id = ?';
+    db.query(checkUserQuery, [user_id], async (err, results) => {
+      if (err) throw err;
+
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const user = results[0];
+      const isPasswordValid = await bcrypt.compare(old_password, user.password);
+
+      if (!isPasswordValid) {
+        return res.status(400).json({ message: 'Invalid password' });
+      }
+
+      const hashedPassword = await bcrypt.hash(new_password, 10);
+
+      const updatePasswordQuery = 'UPDATE users SET password = ? WHERE id = ?';
+      db.query(updatePasswordQuery, [hashedPassword, user_id], (err) => {
+        if (err) throw err;
+        res.status(200).json({ message: 'Password updated successfully' });
+      });
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Payments handler
+exports.payments = (req, res) => {
+  const { user_id, amount, payment_id, order_id, currency} = req.body;
+
+  if (!user_id || !amount || !payment_id || !currency) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  const addPaymentQuery = `
+    INSERT INTO payments (user_id, payment_id, order_id, amount, currency, payment_status)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(
+    addPaymentQuery,
+    [user_id, payment_id, order_id, amount, currency, 'success'],
+    (err) => {
+      if (err) {
+        console.error('Error adding payment:', err);
+        return res.status(500).json({ message: 'Internal server error' });
+      }
+
+      res.status(201).json({ message: 'Payment added successfully' });
+    }
+  );
+};

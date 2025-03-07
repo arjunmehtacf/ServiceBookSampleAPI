@@ -5,7 +5,8 @@ const {
   deleteCustomerById,
   addCustomer,
   updateCustomerById,
-  updateProfilePicture
+  updateProfilePicture,
+  getAllSubscriptionPlans
 } = require('../model/customerModel');
 
 
@@ -171,23 +172,38 @@ exports.updateCustomer = (req, res) => {
 // Update customer profile picture
 exports.addProfilePicture = async (req, res) => {
   try {
-      const { user_id, profile_picture } = req.body;
+    const { user_id, profile_picture } = req.body;
 
-      if (!user_id || !profile_picture) {
-          return res.status(400).json({ message: "User ID and Profile Picture are required" });
-      }
+    if (!user_id || !profile_picture) {
+      return res.status(400).json({ message: "User ID and Profile Picture are required" });
+    }
 
-      // Update user profile picture
-      const result = await updateProfilePicture(user_id, profile_picture);
+    // Update user profile picture
+    const result = await updateProfilePicture(user_id, profile_picture);
 
-      if (result.affectedRows === 0) {
-          return res.status(404).json({ message: "User not found" });
-      }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-      res.status(200).json({ message: "Profile picture updated successfully" });
+    res.status(200).json({ message: "Profile picture updated successfully", profile_picture: profile_picture });
 
   } catch (error) {
-      console.error("Error updating profile picture:", error);
-      res.status(500).json({ message: "Internal server error" });
+    console.error("Error updating profile picture:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
+};
+
+// Subscription Plan
+exports.subscriptionPlan = (req, res) => {
+  const { user_id } = req.body;
+
+  if (!user_id) {
+    return res.status(400).json({ message: "User ID is required" });
+  }
+  getAllSubscriptionPlans((err, results) => {
+    if (err) {
+      return res.status(500).json({ message: 'Error fetching subscription plans', error: err });
+    }
+    res.status(200).json({ message: 'Subscription plans fetched successfully', data: results });
+  });
 };
