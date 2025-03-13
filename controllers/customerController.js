@@ -200,10 +200,15 @@ exports.subscriptionPlan = (req, res) => {
   if (!user_id) {
     return res.status(400).json({ message: "User ID is required" });
   }
-  getAllSubscriptionPlans((err, results) => {
+
+  getAllSubscriptionPlans(user_id, (err, results) => {
     if (err) {
       return res.status(500).json({ message: 'Error fetching subscription plans', error: err });
     }
-    res.status(200).json({ message: 'Subscription plans fetched successfully', data: results });
+
+    res.status(200).json({
+      message: 'Subscription plans fetched successfully',
+      data: results,
+    });
   });
 };

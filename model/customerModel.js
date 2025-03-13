@@ -207,16 +207,61 @@ const updateCustomerById = (customerData, callback) => {
 
 // get all susbcription plan
 
-const getAllSubscriptionPlans = (callback) => {
-  const query = 'SELECT plan_id, title, price, description, duration, amount FROM subscription_plan';
+const getAllSubscriptionPlans = (user_id, callback) => {
+  const query = 'SELECT plan_id, title, price, description, duration, amount, button_text FROM subscription_plan';
 
   db.query(query, (err, results) => {
     if (err) {
       callback(err, null);
     } else {
-      callback(null, results);
+      // Fetch subscription status for each plan and check end date
+      const subscriptionStatusPromises = results.map(plan => {
+        return new Promise((resolve, reject) => {
+          const subscriptionQuery = `
+            SELECT subscription_status, subscription_end_date AS end_date
+            FROM subscription_detail 
+            WHERE user_id = ? AND plan_id = ?
+          `;
+          db.query(subscriptionQuery, [user_id, plan.plan_id], (subscriptionErr, subscriptionResults) => {
+            if (subscriptionErr) {
+              reject(subscriptionErr);
+            } else {
+              let isSubscribed = false;
+              let isSubscribedOnce = false; // Initialize isSubscribedOnce
+
+              if (subscriptionResults.length > 0) {
+                // If there are any subscription records, the plan was subscribed at some point
+                isSubscribedOnce = true;
+
+                if (subscriptionResults[0].subscription_status === 1) {
+                  const endDate = subscriptionResults[0].end_date;
+                  if (endDate) {
+                    const currentDate = new Date();
+                    isSubscribed = new Date(endDate) >= currentDate;
+                  } else {
+                    // If end_date is null, assume subscription is active
+                    isSubscribed = true;
+                  }
+                }
+              }
+
+              resolve({ ...plan, isSubscribed, isSubscribedOnce }); // Include isSubscribedOnce in the resolved object
+            }
+          });
+        });
+      });
+
+      // Resolve all subscription status promises
+      Promise.all(subscriptionStatusPromises)
+        .then(updatedResults => {
+          callback(null, updatedResults); // Pass only updatedResults to callback
+        })
+        .catch(err => {
+          callback(err, null); // Pass only err to callback
+        });
     }
   });
 };
+
 
 module.exports = { getAllCustomers, getCustomerById, deleteCustomerById, addCustomer, updateCustomerById, updateProfilePicture, getAllSubscriptionPlans };

@@ -83,13 +83,50 @@ exports.login = (req, res) => {
       }
 
       const access_token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '5h' });
-      res.status(200).json({ message: 'Login Successful', access_token, user_id: user.id, first_name: user.first_name, last_name: user.last_name, email: user.email, mobile_number: user.mobile_number, birthdate: user.birthdate, profile_picture: user.profile_picture});
+
+      // Fetch the latest subscription
+      const subscriptionQuery = `
+        SELECT subscription_end_date 
+        FROM subscription_detail 
+        WHERE user_id = ? 
+        ORDER BY subscription_start_date DESC 
+        LIMIT 1
+      `;
+
+      db.query(subscriptionQuery, [user.id], (subscriptionErr, subscriptionResults) => {
+        if (subscriptionErr) {
+          console.error("Error fetching subscription details:", subscriptionErr);
+        }
+
+        const currentDate = new Date();
+        let subscriptionStatus = false;
+
+        if (
+          subscriptionResults &&
+          subscriptionResults.length > 0 &&
+          new Date(subscriptionResults[0].subscription_end_date).getTime() > currentDate.getTime()
+        ) {
+          subscriptionStatus = true;
+        }
+
+        res.status(200).json({
+          message: 'Login Successful',
+          access_token,
+          user_id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+          mobile_number: user.mobile_number,
+          birthdate: user.birthdate,
+          subscription_status: subscriptionStatus,
+          profile_picture: user.profile_picture
+        });
+      });
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
 //logout handler
 // Logout function
 exports.logout = (req, res) => {
@@ -190,27 +227,62 @@ exports.changePassword = async (req, res) => {
 
 // Payments handler
 exports.payments = (req, res) => {
-  const { user_id, amount, payment_id, order_id, currency} = req.body;
+  const { user_id, amount, payment_id, order_id, currency, subscription_plan_id } = req.body;
 
-  if (!user_id || !amount || !payment_id || !currency) {
+  if (!user_id || !amount || !payment_id || !currency || !subscription_plan_id) {
     return res.status(400).json({ message: 'All fields are required' });
   }
 
   const addPaymentQuery = `
-    INSERT INTO payments (user_id, payment_id, order_id, amount, currency, payment_status)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO payments (user_id, payment_id, order_id, amount, currency, payment_status, subscription_plan_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.query(
     addPaymentQuery,
-    [user_id, payment_id, order_id, amount, currency, 'success'],
+    [user_id, payment_id, order_id, amount, currency, 'success', subscription_plan_id],
     (err) => {
       if (err) {
         console.error('Error adding payment:', err);
         return res.status(500).json({ message: 'Internal server error' });
       }
 
-      res.status(201).json({ message: 'Payment added successfully' });
+      // Fetch subscription plan duration to calculate end date
+      const getPlanDurationQuery = 'SELECT duration FROM subscription_plan WHERE plan_id = ?';
+      db.query(getPlanDurationQuery, [subscription_plan_id], (planErr, planResults) => {
+        if (planErr) {
+          console.error('Error fetching plan duration:', planErr);
+          return res.status(500).json({ message: 'Internal server error' });
+        }
+
+        if (planResults.length === 0) {
+          return res.status(400).json({ message: 'Subscription plan not found' });
+        }
+
+        const duration = planResults[0].duration;
+        const startDate = new Date();
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + duration);
+
+        // Add record to subscription_detail table
+        const addSubscriptionDetailQuery = `
+          INSERT INTO subscription_detail (user_id, plan_id, subscription_start_date, subscription_end_date, subscription_status)
+          VALUES (?, ?, ?, ?, ?)
+        `;
+
+        db.query(
+          addSubscriptionDetailQuery,
+          [user_id, subscription_plan_id, startDate, endDate, 1], // Assuming 1 for active subscription
+          (subErr) => {
+            if (subErr) {
+              console.error('Error adding subscription detail:', subErr);
+              return res.status(500).json({ message: 'Internal server error' });
+            }
+
+            res.status(201).json({ message: 'Payment and subscription added successfully' });
+          }
+        );
+      });
     }
   );
 };
