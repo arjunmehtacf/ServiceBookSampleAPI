@@ -127,6 +127,8 @@ exports.login = (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+
 //logout handler
 // Logout function
 exports.logout = (req, res) => {
@@ -279,7 +281,7 @@ exports.payments = (req, res) => {
               return res.status(500).json({ message: 'Internal server error' });
             }
 
-            res.status(201).json({ message: 'Payment and subscription added successfully' });
+            res.status(201).json({ message: 'Your subscription has been successfully activated. Enjoy!' });
           }
         );
       });

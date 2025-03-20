@@ -212,3 +212,78 @@ exports.subscriptionPlan = (req, res) => {
     });
   });
 };
+
+
+// Dashboard API
+
+exports.dashboard = (req, res) => {
+  const { user_id } = req.body;
+
+  console.log("userId:", user_id);
+
+  if (!user_id) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  // Fetch recent service details with customer info
+  const serviceQuery = `
+    SELECT 
+      sd.service_detail_id, 
+      sd.visit_date, 
+      sd.visit_time, 
+      sd.purpose,
+      sd.tech_sign,
+      sd.cust_sign, 
+      sd.particulars,
+      c.name AS customer_name,
+      c.address AS customer_address,
+      c.mobile_number AS customer_mobile_number,
+      c.customer_id,
+      c.user_id,
+      c.model AS customer_model
+    FROM service_detail sd
+    JOIN customers c ON sd.customer_id = c.customer_id
+    WHERE sd.user_id = ?
+    ORDER BY sd.visit_date DESC, sd.visit_time DESC
+    LIMIT 2;
+  `;
+
+  // Fetch subscription details and calculate remaining days
+  const subscriptionQuery = `
+    SELECT subscription_end_date
+    FROM subscription_detail
+    WHERE user_id = ?
+    ORDER BY subscription_start_date DESC
+    LIMIT 1;
+  `;
+
+  db.query(serviceQuery, [user_id], (serviceErr, serviceResults) => {
+    if (serviceErr) {
+      console.error('Error fetching service details:', serviceErr);
+      return res.status(500).json({ error: 'Failed to fetch service details' });
+    }
+
+    db.query(subscriptionQuery, [user_id], (subscriptionErr, subscriptionResults) => {
+      if (subscriptionErr) {
+        console.error('Error fetching subscription details:', subscriptionErr);
+        return res.status(500).json({ error: 'Failed to fetch subscription details' });
+      }
+
+      let remainingDays = null;
+      if (subscriptionResults.length > 0 && subscriptionResults[0].subscription_end_date) {
+        const endDate = new Date(subscriptionResults[0].subscription_end_date);
+        const currentDate = new Date();
+        const timeDiff = endDate.getTime() - currentDate.getTime();
+        remainingDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+        if (remainingDays < 0) {
+          remainingDays = 0;
+        }
+      }
+
+      res.json({
+        recentServices: serviceResults,
+        subscriptionRemainingDays: remainingDays,
+      });
+    });
+  });
+};
