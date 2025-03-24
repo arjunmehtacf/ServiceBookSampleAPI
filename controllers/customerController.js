@@ -239,7 +239,7 @@ exports.dashboard = (req, res) => {
       c.address AS customer_address,
       c.mobile_number AS customer_mobile_number,
       c.customer_id,
-      c.user_id,
+      sd.user_id,
       c.model AS customer_model
     FROM service_detail sd
     JOIN customers c ON sd.customer_id = c.customer_id

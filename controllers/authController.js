@@ -2,6 +2,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const { invalidateToken } = require('../model/authModel');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 
 const JWT_SECRET = '2cf8abb9231cd14fe3bd9cd3fd304c715c334a51aa682a1b720d395cd0634e74';
 
@@ -10,7 +12,7 @@ exports.signup = async (req, res) => {
   const { username, email, password, role, birthdate, profile_picture, first_name, last_name, mobile_number } = req.body;
 
   // Check if all required fields are provided
-  if ( !mobile_number || !email || !password || !role || !birthdate || !first_name || !last_name) {
+  if (!mobile_number || !email || !password || !role || !birthdate || !first_name || !last_name) {
     return res.status(400).json({ message: 'All required fields must be provided' });
   }
 
@@ -287,4 +289,112 @@ exports.payments = (req, res) => {
       });
     }
   );
+};
+
+// Helper function to send email
+const sendEmail = (email, resetToken) => {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    secure: true,
+    auth: {
+      user: 'nitsjhonson@gmail.com',
+      pass: 'uftj uexl qthz cbuw',
+    },
+  });
+
+  const mailOptions = {
+    from: 'your-email@gmail.com',
+    to: email,
+    subject: 'Password Reset Request',
+    text: `Click the link below to reset your password: 
+                    http://localhost:3000/reset-password.html?token=${resetToken}`, // Corrected URL
+  };
+
+  return transporter.sendMail(mailOptions);
+};
+
+exports.forgotPassword = (req, res) => {
+  const { email } = req.body;
+
+  // Step 1: Verify email exists in the database
+  db.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database query error' });
+    }
+
+    if (results.length === 0) {
+      return res.status(400).json({ error: 'No account found with that email' });
+    }
+
+    const user = results[0];
+
+    // Step 2: Generate a reset token (random string)
+    const resetToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: '1h' });
+    const resetTokenExpiration = new Date(Date.now() + 3600000); // 1 hour expiration
+
+    // Step 3: Save the reset token and expiration in the database
+    db.query('UPDATE users SET reset_token = ?, reset_token_expiration = ? WHERE email = ?',
+      [resetToken, resetTokenExpiration, email], (err, results) => {
+        if (err) {
+          return res.status(500).json({ error: 'Failed to update user with reset token' });
+        }
+
+        // Step 4: Send the reset email
+        sendEmail(email, resetToken)
+          .then(() => {
+            res.status(200).json({ message: 'Password reset email sent' });
+          })
+          .catch((err) => {
+            console.error(err);
+            res.status(500).json({ error: 'Failed to send email' });
+          });
+      });
+  });
+};
+
+// Reset Password Endpoint
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    // Check if the token is valid
+    if (!token) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required' });
+    }
+    // Verify the token
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Fetch user from the database using the decoded email
+    db.query('SELECT * FROM users WHERE email = ? AND reset_token = ? AND reset_token_expiration > NOW()', [decoded.email, token], async (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database query error' });
+      }
+
+      if (results.length === 0) {
+        return res.status(400).json({ message: 'Invalid or expired token' });
+      }
+
+      const user = results[0];
+
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Update the user's password and clear the reset token
+      db.query('UPDATE users SET password = ?, reset_token = NULL, reset_token_expiration = NULL WHERE email = ?', [hashedPassword, decoded.email], (updateErr, updateResults) => {
+        if (updateErr) {
+          return res.status(500).json({ error: 'Failed to update password' });
+        }
+
+        res.status(200).json({ message: 'Password reset successfully' });
+      });
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: 'Invalid or expired token' });
+  }
 };
