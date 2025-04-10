@@ -4,8 +4,9 @@ const db = require('../config/db');
 const { invalidateToken } = require('../model/authModel');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const dotenv = require('dotenv').config();
 
-const JWT_SECRET = '2cf8abb9231cd14fe3bd9cd3fd304c715c334a51aa682a1b720d395cd0634e74';
+let refreshTokensDB = {}; // In-memory store for refresh tokens
 
 // Signup handler
 exports.signup = async (req, res) => {
@@ -84,7 +85,7 @@ exports.login = (req, res) => {
         return res.status(400).json({ message: 'Invalid email or password' });
       }
 
-      const access_token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '5h' });
+      const access_token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
       // Fetch the latest subscription
       const subscriptionQuery = `
@@ -329,7 +330,7 @@ exports.forgotPassword = (req, res) => {
     const user = results[0];
 
     // Step 2: Generate a reset token (random string)
-    const resetToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: '1h' });
+    const resetToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '1h' });
     const resetTokenExpiration = new Date(Date.now() + 3600000); // 1 hour expiration
 
     // Step 3: Save the reset token and expiration in the database
@@ -342,7 +343,7 @@ exports.forgotPassword = (req, res) => {
         // Step 4: Send the reset email
         sendEmail(email, resetToken)
           .then(() => {
-            res.status(200).json({ message: 'Password reset email sent' });
+            res.status(200).json({ message: `Password reset link sent to ${email}. Please check your inbox and click the given reset link to reset your password.` });
           })
           .catch((err) => {
             console.error(err);
@@ -366,7 +367,7 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Password is required' });
     }
     // Verify the token
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Fetch user from the database using the decoded email
     db.query('SELECT * FROM users WHERE email = ? AND reset_token = ? AND reset_token_expiration > NOW()', [decoded.email, token], async (err, results) => {
@@ -396,5 +397,78 @@ exports.resetPassword = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(400).json({ message: 'Invalid or expired token' });
+  }
+};
+
+// Generate a new access token
+function generateAccessToken(userId) {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
+}
+
+// Generate a new refresh token
+function generateRefreshToken(userId) {
+  const refreshToken = jwt.sign({ userId }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+  // Store the refresh token (in-memory store or database in production)
+  refreshTokensDB[userId] = refreshToken;
+  return refreshToken;
+}
+
+// Refresh token endpoint
+exports.refreshToken = (req, res) => {
+  const { userId, oldRefreshToken } = req.body;
+
+  if (!userId || !oldRefreshToken) {
+    return res.status(400).json({ message: 'User ID and Refresh Token are required.' });
+  }
+
+  // Check if the old refresh token exists in the database
+  if (refreshTokensDB[userId] !== oldRefreshToken) {
+    return res.status(403).json({ message: 'Invalid or expired refresh token.' });
+  }
+
+  // Verify the old refresh token
+  jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ message: 'Invalid or expired refresh token.' });
+    }
+
+    // Generate a new access token and refresh token
+    const newAccessToken = generateAccessToken(userId);
+    const newRefreshToken = generateRefreshToken(userId);
+
+    return res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
+  });
+};
+
+// App version endpoint
+exports.appVersion = (req, res) => {
+  const { version } = req.body;
+
+  if (!version) {
+    return res.status(400).json({ message: 'Version is required' });
+  }
+
+  try {
+    db.query('SELECT version_name FROM app_version WHERE version_name = ?', [version], (err, results) => {
+      if (err) {
+        console.error('Error fetching app version:', err);
+        return res.status(500).json({ message: 'Internal server error' });
+      }
+      if (results.length === 0) {
+        return res.status(200).json({ message: 'Your application is out dated, please update the app from playstore by clicking below update app button.', result: false });
+      } else {
+        return res.status(200).json({
+          message: 'You are up to date',
+          result: true
+        });
+      }
+
+    });
+  } catch (error) {
+    console.error('Error checking app version:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
