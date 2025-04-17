@@ -9,9 +9,11 @@ const path = require('path');
 const app = express();
 app.use(cors());
 
-// Middleware
-app.use(express.json());
-app.use(bodyParser.json({ limit: '50mb' })); // Adjust the limit as needed
+// Middleware - use only one version of each parser, with proper limits
+app.use(express.json({ limit: '50mb' })); // only once, with sufficient limit
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// Optional: if you're still using body-parser, it must match the same limits
+app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 app.use(express.static(path.join(__dirname, 'public')));

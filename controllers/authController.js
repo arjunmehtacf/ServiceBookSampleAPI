@@ -5,6 +5,8 @@ const { invalidateToken } = require('../model/authModel');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const dotenv = require('dotenv').config();
+const os = require('os');
+
 
 let refreshTokensDB = {}; // In-memory store for refresh tokens
 
@@ -292,8 +294,25 @@ exports.payments = (req, res) => {
   );
 };
 
+// Get local IP address
+function getLocalIp() {
+  const interfaces = os.networkInterfaces();
+  for (let iface in interfaces) {
+    for (let alias of interfaces[iface]) {
+      if (alias.family === 'IPv4' && !alias.internal) {
+        return alias.address;
+      }
+    }
+  }
+  return 'localhost'; // fallback
+}
+
+const PORT = process.env.PORT || 3000;
+const HOST = getLocalIp();
+
 // Helper function to send email
 const sendEmail = (email, resetToken) => {
+  const resetLink = `http://${HOST}:${PORT}/reset-password.html?token=${resetToken}`;
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     secure: true,
@@ -307,8 +326,7 @@ const sendEmail = (email, resetToken) => {
     from: 'your-email@gmail.com',
     to: email,
     subject: 'Password Reset Request',
-    text: `Click the link below to reset your password: 
-                    http://localhost:3000/reset-password.html?token=${resetToken}`, // Corrected URL
+    text: `Click the link below to reset your password:\n${resetLink}`,
   };
 
   return transporter.sendMail(mailOptions);
