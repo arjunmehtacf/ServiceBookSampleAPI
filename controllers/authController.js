@@ -87,7 +87,7 @@ exports.login = (req, res) => {
         return res.status(400).json({ message: 'Invalid email or password' });
       }
 
-      const access_token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '30d' });
+      const access_token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '5h' });
 
       // Fetch the latest subscription
       const subscriptionQuery = `

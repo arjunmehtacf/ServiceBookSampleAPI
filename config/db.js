@@ -6,10 +6,11 @@ const db = mysql.createConnection({
   host: 'localhost',
   //mysql://root:kfhuOThTptyOluLGLqlMFXrHaFGavoBe@roundhouse.proxy.rlwy.net:15303/railway
   // host:'roundhouse.proxy.rlwy.net',
-  user: 'root',
+  // user: 'root',
+  user: 'arjun',
   // password: 'kfhuOThTptyOluLGLqlMFXrHaFGavoBe',
-  password:'root123',
-  // password: 'Dhruv$100690',
+  // password:'root123',
+  password: 'Dhruv$100690',
   database: 'compose',
   // database: 'railway',
   // port: 15303, // Use the Railway port from your credentials
